@@ -1,12 +1,19 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1728219374533,
-      "tag": "0000_sturdy_the_professor",
+      "version": "7",
+      "when": 1728228355839,
+      "tag": "0000_legal_amazoness",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1728253342212,
+      "tag": "0001_fat_inertia",
       "breakpoints": true
     }
   ]

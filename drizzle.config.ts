@@ -1,12 +1,14 @@
 import type { Config } from 'drizzle-kit'
-import { env } from './env'
 
-export default {
+console.log('POSTGRES_URL:', process.env.POSTGRES_URL)
+
+const config: Config = {
   schema: './src/db/schema.ts',
+  out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: env.POSTGRES_URL,
+    url: process.env.POSTGRES_URL || '',
   },
+}
 
-  tablesFilter: ['t3gallery_*'],
-} satisfies Config
+export default config
