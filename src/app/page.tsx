@@ -1,101 +1,628 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useEffect } from 'react'
+import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { format, addDays, isBefore, isAfter } from 'date-fns'
+import React from 'react'
+
+const categories = ["Produce", "Meat", "Dairy", "Grains", "Other"]
+const units = ["piece(s)", "g", "kg", "ml", "l", "cup(s)", "tbsp", "tsp", "oz", "lb", "bunch(es)"]
+
+// Function to fetch recipes from MealDB API
+const fetchRecipes = async (ingredients: InventoryItem[]) => {
+  const recipes = []
+  for (const ingredient of ingredients) {
+    const url = `https://www.themealdb.com/api/json/v1/1/filter.php?i=${ingredient.name}`
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('Failed to fetch recipes')
+      }
+      const data = await response.json()
+      if (data.meals) {
+        recipes.push(...data.meals)
+      }
+    } catch (error) {
+      console.error('Error fetching recipes:', error)
+    }
+  }
+  return recipes
+}
+
+// Function to fetch recipe details from MealDB API
+const fetchRecipeDetails = async (recipeId: string) => {
+  const url = `https://www.themealdb.com/api/json/v1/1/lookup.php?i=${recipeId}`
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error('Failed to fetch recipe details')
+    }
+    const data = await response.json()
+    return data.meals[0]
+  } catch (error) {
+    console.error('Error fetching recipe details:', error)
+    return null
+  }
+}
+
+const getAppropriateUnit = (itemName: string, category: string) => {
+  const lowerName = itemName.toLowerCase()
+  if (category === "Produce") {
+    if (lowerName.includes("berry") || lowerName.includes("grape")) return "cup(s)"
+    if (lowerName.includes("lettuce") || lowerName.includes("cabbage")) return "head(s)"
+    if (lowerName.includes("herb") || lowerName.includes("spinach") || lowerName.includes("kale")) return "bunch(es)"
+    return "piece(s)"
+  }
+  if (category === "Meat") return "g"
+  if (category === "Dairy") {
+    if (lowerName.includes("milk") || lowerName.includes("cream")) return "ml"
+    if (lowerName.includes("cheese")) return "g"
+    if (lowerName.includes("yogurt")) return "g"
+    return "piece(s)"
+  }
+  if (category === "Grains") {
+    if (lowerName.includes("flour") || lowerName.includes("rice")) return "g"
+    if (lowerName.includes("bread")) return "slice(s)"
+    return "g"
+  }
+  return "piece(s)"
+}
+
+interface ShoppingItem {
+  name: string
+  quantity: number
+  category: string
+  checked: boolean
+  unit: string
+}
+
+interface InventoryItem {
+  id: number
+  name: string
+  quantity: number
+  category: string
+  unit: string
+  expirationDate: string
+}
+
+interface Recipe {
+  idMeal: string
+  strMeal: string
+  details?: {
+    [key: string]: string
+  }
+  matchedIngredients?: number
+  totalIngredients?: number
+}
+
+export default function ShoppingApp() {
+  const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([])
+  const [newItem, setNewItem] = useState("")
+  const [newItemQuantity, setNewItemQuantity] = useState(1)
+  const [newItemCategory, setNewItemCategory] = useState("Other")
+  const [newItemUnit, setNewItemUnit] = useState("piece(s)")
+  const [inventory, setInventory] = useState<InventoryItem[]>([])
+  const [suggestedRecipes, setSuggestedRecipes] = useState<Recipe[]>([])
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const recipesPerPage = 5
+
+  useEffect(() => {
+    const savedList = localStorage.getItem('shoppingList')
+    const savedInventory = localStorage.getItem('inventory')
+    if (savedList) {
+      setShoppingList(JSON.parse(savedList))
+    }
+    if (savedInventory) {
+      setInventory(JSON.parse(savedInventory))
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('shoppingList', JSON.stringify(shoppingList))
+    localStorage.setItem('inventory', JSON.stringify(inventory))
+  }, [shoppingList, inventory])
+
+  useEffect(() => {
+    if (newItem && newItemCategory) {
+      const suggestedUnit = getAppropriateUnit(newItem, newItemCategory)
+      setNewItemUnit(suggestedUnit)
+    }
+  }, [newItem, newItemCategory])
+
+  const addItem = () => {
+    if (newItem.trim() !== "") {
+      setShoppingList([...shoppingList, {
+        name: newItem,
+        quantity: newItemQuantity,
+        category: newItemCategory,
+        checked: false,
+        unit: newItemUnit
+      }])
+      setNewItem("")
+      setNewItemQuantity(1)
+      setNewItemCategory("Other")
+      setNewItemUnit("piece(s)")
+    }
+  }
+
+  const toggleItem = (index: number) => {
+    const updatedList = [...shoppingList]
+    updatedList[index].checked = !updatedList[index].checked
+    setShoppingList(updatedList)
+  }
+
+  const removeItem = (index: number) => {
+    const updatedList = shoppingList.filter((_, i) => i !== index)
+    setShoppingList(updatedList)
+  }
+
+  const clearList = () => {
+    setShoppingList([])
+  }
+
+  const suggestRecipes = async () => {
+    setIsLoadingRecipes(true)
+    const availableIngredients = inventory.filter(item => item.quantity > 0)
+
+    try {
+      const recipes = await fetchRecipes(availableIngredients)
+      const uniqueRecipes = Array.from(new Set(recipes.map((r: Recipe) => r.idMeal)))
+        .map(id => recipes.find((r: Recipe) => r.idMeal === id))
+
+      const recipesWithDetails = await Promise.all(
+        uniqueRecipes.slice(0, 20).map(async (recipe: Recipe) => {
+          const details = await fetchRecipeDetails(recipe.idMeal)
+          return { ...recipe, details }
+        })
+      )
+
+      const recipesWithIngredientMatch = recipesWithDetails.map(recipe => {
+        const recipeIngredients = Array.from({ length: 20 }, (_, i) => i + 1)
+          .map(i => recipe.details[`strIngredient${i}`])
+          .filter(Boolean)
+          .map(ing => ing.toLowerCase())
+
+        const matchedIngredients = availableIngredients.filter(item =>
+          recipeIngredients.some(ing => ing.includes(item.name.toLowerCase()))
+        )
+
+        return {
+          ...recipe,
+          matchedIngredients: matchedIngredients.length,
+          totalIngredients: recipeIngredients.length
+        }
+      })
+
+      const sortedRecipes = recipesWithIngredientMatch.sort((a, b) =>
+        (b.matchedIngredients ?? 0) - (a.matchedIngredients ?? 0) ||
+        (a.totalIngredients ?? 0) - (b.totalIngredients ?? 0)
+      )
+
+      setSuggestedRecipes(sortedRecipes)
+      setCurrentPage(1)
+    } catch (error) {
+      console.error("Error generating recipes:", error)
+    } finally {
+      setIsLoadingRecipes(false)
+    }
+  }
+
+  const handleUseRecipe = (recipe: Recipe) => {
+    const updatedInventory = inventory.map(item => {
+      const recipeIngredient = recipe.details && Array.from({ length: 20 }, (_, i) => i + 1)
+        .map(i => ({
+          name: recipe.details?.[`strIngredient${i}`] ?? '',
+          measure: recipe.details?.[`strMeasure${i}`] ?? ''
+        }))
+        .find(ing => ing.name && ing.name.toLowerCase().includes(item.name.toLowerCase()))
+
+      if (recipeIngredient) {
+        // This is a simplified approach. In a real app, you'd need to handle unit conversions and parsing of measures.
+        return { ...item, quantity: Math.max(0, item.quantity - 1) }
+      }
+      return item
+    })
+    setInventory(updatedInventory)
+  }
+
+  const addToInventory = () => {
+    const checkedItems = shoppingList.filter(item => item.checked)
+    const updatedInventory = [...inventory]
+
+    checkedItems.forEach(item => {
+      const existingItem = updatedInventory.find(invItem => invItem.name.toLowerCase() === item.name.toLowerCase())
+      if (existingItem) {
+        existingItem.quantity += item.quantity
+      } else {
+        updatedInventory.push({
+          id: Date.now(),
+          name: item.name,
+          quantity: item.quantity,
+          category: item.category,
+          unit: item.unit,
+          expirationDate: addDays(new Date(), 7).toISOString()
+        })
+      }
+    })
+
+    setInventory(updatedInventory)
+    setShoppingList(shoppingList.filter(item => !item.checked))
+  }
+
+  const startEditingItem = (item: InventoryItem) => {
+    setEditingItem({ ...item })
+  }
+
+  const saveEditedItem = () => {
+    if (editingItem) {
+      const updatedInventory = inventory.map(item =>
+        item.id === editingItem.id ? editingItem : item
+      )
+      setInventory(updatedInventory)
+      setEditingItem(null)
+    }
+  }
+
+  const filteredInventory = inventory.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const filteredRecipes = suggestedRecipes.filter(recipe =>
+    recipe.strMeal.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const isExpiringSoon = (date: string) => {
+    const expirationDate = new Date(date)
+    const today = new Date()
+    const threeDaysFromNow = addDays(today, 3)
+    return isAfter(expirationDate, today) && isBefore(expirationDate, threeDaysFromNow)
+  }
+
+  const isExpired = (date: string) => {
+    const expirationDate = new Date(date)
+    const today = new Date()
+    return isBefore(expirationDate, today)
+  }
+
+  const paginatedRecipes = filteredRecipes.slice(
+    (currentPage - 1) * recipesPerPage,
+    currentPage * recipesPerPage
+  )
+
+  const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage)
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Shopping App</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Shopping List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex mb-4">
+            <Input
+              type="text"
+              value={newItem}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItem(e.target.value)}
+              placeholder="Add new item"
+              className="mr-2"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <Input
+              type="number"
+              value={newItemQuantity}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItemQuantity(parseInt(e.target.value))}
+              placeholder="Qty"
+              className="mr-2 w-20"
+              min="1"
+            />
+            <Select value={newItemCategory} onValueChange={setNewItemCategory}>
+              <SelectTrigger className="w-[180px] mr-2">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={newItemUnit} onValueChange={setNewItemUnit}>
+              <SelectTrigger className="w-[180px] mr-2">
+                <SelectValue placeholder="Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {units.map(unit => (
+                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Add</Button>
+          </div>
+          <ul>
+            {shoppingList.map((item, index) => (
+              <li key={index} className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleItem(index)}
+                  className="mr-2"
+                />
+                <span className={item.checked ? "line-through" : ""}>
+                  {item.name} (Qty: {item.quantity} {item.unit}, Category: {item.category})
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => removeItem(index)} className="ml-auto">
+                  <Trash className="w-4 h-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-between mt-4">
+            <Button variant="outline" onClick={clearList}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Clear List
+            </Button>
+            <Button onClick={addToInventory}>
+              <ShoppingCart className="w-4 h-4 mr-2" /> Add to Inventory
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Inventory</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex items-center">
+            <Search className="w-4 h-4 mr-2" />
+            <Input
+              type="text"
+              placeholder="Search inventory..."
+              value={searchTerm}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Expiration Date</TableHead>
+                <TableHead>Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredInventory.map((item) => (
+                <TableRow key={item.id} className={
+                  isExpired(item.expirationDate) ? "bg-red-100" :
+                    isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
+                }>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.quantity} {item.unit}</TableCell>
+                  <TableCell>{item.category}</TableCell>
+                  <TableCell>
+                    {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
+                    {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
+                      <AlertTriangle className="inline-block ml-2 text-yellow-500" />
+                    )}
+                    {isExpired(item.expirationDate) && (
+                      <AlertTriangle className="inline-block ml-2 text-red-500" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Inventory Item</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                              Name
+                            </Label>
+                            <Input
+                              id="name"
+                              value={editingItem?.name || ''}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, name: e.target.value } : null)}
+                              className="col-span-3"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="quantity" className="text-right">
+                              Quantity
+                            </Label>
+                            <Input
+                              id="quantity"
+                              type="number"
+                              value={editingItem?.quantity || 0}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, quantity: parseInt(e.target.value) } : null)}
+                              className="col-span-3"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit" className="text-right">
+                              Unit
+                            </Label>
+                            <Select
+                              value={editingItem?.unit || 'piece(s)'}
+                              onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, unit: value } : null)}
+                            >
+                              <SelectTrigger className="w-[180px] col-span-3">
+                                <SelectValue placeholder="Unit" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {units.map(unit => (
+                                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="category" className="text-right">
+                              Category
+                            </Label>
+                            <Select
+                              value={editingItem?.category || 'Other'}
+                              onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, category: value } : null)}
+                            >
+                              <SelectTrigger className="w-[180px] col-span-3">
+                                <SelectValue placeholder="Category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map(category => (
+                                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="expirationDate" className="text-right">
+                              Expiration Date
+                            </Label>
+                            <Input
+                              id="expirationDate"
+                              type="date"
+                              value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, expirationDate: new Date(e.target.value).toISOString() } : null)}
+                              className="col-span-3"
+                            />
+                          </div>
+                        </div>
+                        <Button onClick={saveEditedItem}>Save Changes</Button>
+                      </DialogContent>
+                    </Dialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Recipe Suggestions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex items-center">
+            <Search className="w-4 h-4 mr-2" />
+            <Input
+              type="text"
+              placeholder="Search recipes..."
+              value={searchTerm}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Button onClick={suggestRecipes} className="mb-4" disabled={isLoadingRecipes}>
+            {isLoadingRecipes ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Loading Recipes
+              </>
+            ) : (
+              <>
+                <ChefHat className="w-4 h-4 mr-2" /> Suggest Recipes
+              </>
+            )}
+          </Button>
+          {paginatedRecipes.length > 0 ? (
+            <>
+              <ul>
+                {paginatedRecipes.map((recipe) => (
+                  <li key={recipe.idMeal} className="mb-8 p-6 border rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-2xl font-semibold">{recipe.strMeal}</h3>
+                      <span className={`px-2 py-1 rounded-full text-sm ${recipe.matchedIngredients === recipe.totalIngredients ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {recipe.matchedIngredients} / {recipe.totalIngredients} ingredients available
+                      </span>
+                    </div>
+                    {recipe.details && (
+                      <div>
+                        <h4 className="text-lg font-medium mb-2">Ingredients:</h4>
+                        <ul className="list-disc list-inside mb-4">
+                          {Array.from({ length: 20 }, (_, i) => i + 1).map((i) => {
+                            const ingredient = recipe.details?.[`strIngredient${i}`]
+                            const measure = recipe.details?.[`strMeasure${i}`]
+                            if (ingredient && measure) {
+                              const isAvailable = inventory.some(item =>
+                                ingredient.toLowerCase().includes(item.name.toLowerCase())
+                              )
+                              return (
+                                <li key={i} className={isAvailable ? "text-green-600" : "text-red-500"}>
+                                  {`${measure} ${ingredient}`} {isAvailable ? "(available)" : "(missing)"}
+                                </li>
+                              )
+                            }
+                            return null
+                          }).filter(Boolean)}
+                        </ul>
+                        <h4 className="text-lg font-medium mb-2">Instructions:</h4>
+                        <p>{recipe.details.strInstructions}</p>
+                      </div>
+                    )}
+                    <Button onClick={() => handleUseRecipe(recipe)} size="sm" className="mt-4">
+                      Use Recipe
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-between items-center mt-4">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+                </Button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p>No recipes suggested yet. Click &quot;Suggest Recipes&quot; to get started!</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
