@@ -1,7 +1,7 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { pgTable, serial, text, integer, boolean } from 'drizzle-orm/pg-core'
 
-export const inventoryItems = sqliteTable('inventory_items', {
-  id: integer('id').primaryKey(),
+export const inventoryItems = pgTable('inventory_items', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   quantity: integer('quantity').notNull(),
   category: text('category').notNull(),
@@ -9,11 +9,11 @@ export const inventoryItems = sqliteTable('inventory_items', {
   expirationDate: text('expiration_date').notNull(),
 })
 
-export const shoppingListItems = sqliteTable('shopping_list_items', {
-  id: integer('id').primaryKey(),
+export const shoppingListItems = pgTable('shopping_list_items', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   quantity: integer('quantity').notNull(),
   category: text('category').notNull(),
   unit: text('unit').notNull(),
-  checked: integer('checked', { mode: 'boolean' }).notNull(),
+  checked: boolean('checked').notNull(),
 })

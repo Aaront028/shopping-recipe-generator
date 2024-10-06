@@ -1,10 +1,15 @@
-import { drizzle } from 'drizzle-orm/libsql'
-import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import * as schema from './schema'
 
-const client = createClient({
-  url: process.env.DATABASE_URL || 'file:./shopping_list.db',
-  authToken: process.env.DATABASE_AUTH_TOKEN,
-})
+const connectionString = process.env.DATABASE_URL
 
+if (!connectionString) {
+  console.error(
+    'DATABASE_URL is not set. Please set this environment variable.'
+  )
+  process.exit(1)
+}
+
+const client = postgres(connectionString)
 export const db = drizzle(client, { schema })

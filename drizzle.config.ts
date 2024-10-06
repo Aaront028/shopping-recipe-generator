@@ -1,13 +1,12 @@
 import type { Config } from 'drizzle-kit'
+import { env } from './env'
 
 export default {
   schema: './src/db/schema.ts',
-  out: './drizzle',
-  driver: 'turso',
-  dialect: 'sqlite', // Add this line
+  dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'file:./shopping_list.db',
+    url: env.POSTGRES_URL,
   },
-  verbose: true,
-  strict: true,
+
+  tablesFilter: ['t3gallery_*'],
 } satisfies Config
