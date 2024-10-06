@@ -94,8 +94,8 @@ const getAppropriateUnit = (itemName: string, category: string) => {
   }
   return "piece(s)"
 }
-
 interface ShoppingItem {
+  id: number
   name: string
   quantity: number
   category: string
@@ -137,20 +137,22 @@ export default function ShoppingApp() {
   const recipesPerPage = 5
 
   useEffect(() => {
-    const savedList = localStorage.getItem('shoppingList')
-    const savedInventory = localStorage.getItem('inventory')
-    if (savedList) {
-      setShoppingList(JSON.parse(savedList))
-    }
-    if (savedInventory) {
-      setInventory(JSON.parse(savedInventory))
-    }
-  }, [])
+    fetchShoppingList();
+    fetchInventory();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('shoppingList', JSON.stringify(shoppingList))
-    localStorage.setItem('inventory', JSON.stringify(inventory))
-  }, [shoppingList, inventory])
+  const fetchShoppingList = async () => {
+    const response = await fetch('/api/shopping-list');
+    const data = await response.json();
+    console.log('Fetched shopping list:', data);
+    setShoppingList(data);
+  };
+
+  const fetchInventory = async () => {
+    const response = await fetch('/api/inventory');
+    const data = await response.json();
+    setInventory(data);
+  };
 
   useEffect(() => {
     if (newItem && newItemCategory) {
@@ -159,36 +161,76 @@ export default function ShoppingApp() {
     }
   }, [newItem, newItemCategory])
 
-  const addItem = () => {
+  const addItem = async () => {
     if (newItem.trim() !== "") {
-      setShoppingList([...shoppingList, {
+      const item = {
         name: newItem,
         quantity: newItemQuantity,
         category: newItemCategory,
         checked: false,
         unit: newItemUnit
-      }])
-      setNewItem("")
-      setNewItemQuantity(1)
-      setNewItemCategory("Other")
-      setNewItemUnit("piece(s)")
+      };
+      const response = await fetch('/api/shopping-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+      const newItemWithId = await response.json();
+      setShoppingList(prevList => [...prevList, newItemWithId]);
+      setNewItem("");
+      setNewItemQuantity(1);
+      setNewItemCategory("Other");
+      setNewItemUnit("piece(s)");
     }
-  }
+  };
 
-  const toggleItem = (index: number) => {
-    const updatedList = [...shoppingList]
-    updatedList[index].checked = !updatedList[index].checked
-    setShoppingList(updatedList)
-  }
+  const toggleItem = async (id: number, checked: boolean) => {
+    try {
+      console.log('Sending PUT request with id:', id, 'and checked:', checked);
+      const response = await fetch('/api/shopping-list', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, checked }),
+      });
 
-  const removeItem = (index: number) => {
-    const updatedList = shoppingList.filter((_, i) => i !== index)
-    setShoppingList(updatedList)
-  }
+      console.log('Response status:', response.status);
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
 
-  const clearList = () => {
-    setShoppingList([])
-  }
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to update item');
+      }
+
+      setShoppingList(prevList =>
+        prevList.map(item =>
+          item.id === id ? { ...item, checked } : item
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling item:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const removeItem = async (id: number) => {
+    await fetch('/api/shopping-list', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    setShoppingList(prevList => prevList.filter(item => item.id !== id));
+  };
+
+  const clearList = async () => {
+    for (const item of shoppingList) {
+      await fetch('/api/shopping-list', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id }),
+      });
+    }
+    fetchShoppingList();
+  };
 
   const suggestRecipes = async () => {
     setIsLoadingRecipes(true)
@@ -255,43 +297,57 @@ export default function ShoppingApp() {
     setInventory(updatedInventory)
   }
 
-  const addToInventory = () => {
-    const checkedItems = shoppingList.filter(item => item.checked)
-    const updatedInventory = [...inventory]
-
-    checkedItems.forEach(item => {
-      const existingItem = updatedInventory.find(invItem => invItem.name.toLowerCase() === item.name.toLowerCase())
+  const addToInventory = async () => {
+    const checkedItems = shoppingList.filter(item => item.checked);
+    for (const item of checkedItems) {
+      const existingItem = inventory.find(invItem => invItem.name.toLowerCase() === item.name.toLowerCase());
       if (existingItem) {
-        existingItem.quantity += item.quantity
+        await fetch('/api/inventory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...existingItem,
+            quantity: existingItem.quantity + item.quantity,
+          }),
+        });
       } else {
-        updatedInventory.push({
-          id: Date.now(),
-          name: item.name,
-          quantity: item.quantity,
-          category: item.category,
-          unit: item.unit,
-          expirationDate: addDays(new Date(), 7).toISOString()
-        })
+        await fetch('/api/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: item.name,
+            quantity: item.quantity,
+            category: item.category,
+            unit: item.unit,
+            expirationDate: addDays(new Date(), 7).toISOString(),
+          }),
+        });
       }
-    })
-
-    setInventory(updatedInventory)
-    setShoppingList(shoppingList.filter(item => !item.checked))
-  }
+      await fetch('/api/shopping-list', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id }),
+      });
+    }
+    fetchShoppingList();
+    fetchInventory();
+  };
 
   const startEditingItem = (item: InventoryItem) => {
     setEditingItem({ ...item })
   }
 
-  const saveEditedItem = () => {
+  const saveEditedItem = async () => {
     if (editingItem) {
-      const updatedInventory = inventory.map(item =>
-        item.id === editingItem.id ? editingItem : item
-      )
-      setInventory(updatedInventory)
-      setEditingItem(null)
+      await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingItem),
+      });
+      fetchInventory();
+      setEditingItem(null);
     }
-  }
+  };
 
   const filteredInventory = inventory.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -370,18 +426,18 @@ export default function ShoppingApp() {
             <Button onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Add</Button>
           </div>
           <ul>
-            {shoppingList.map((item, index) => (
-              <li key={index} className="flex items-center mb-2">
+            {shoppingList.map((item) => (
+              <li key={item.id} className="flex items-center mb-2">
                 <input
                   type="checkbox"
                   checked={item.checked}
-                  onChange={() => toggleItem(index)}
+                  onChange={() => toggleItem(item.id, !item.checked)}
                   className="mr-2"
                 />
                 <span className={item.checked ? "line-through" : ""}>
                   {item.name} (Qty: {item.quantity} {item.unit}, Category: {item.category})
                 </span>
-                <Button variant="ghost" size="sm" onClick={() => removeItem(index)} className="ml-auto">
+                <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="ml-auto">
                   <Trash className="w-4 h-4" />
                 </Button>
               </li>
