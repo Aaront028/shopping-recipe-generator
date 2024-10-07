@@ -50,3 +50,12 @@ export const shoppingListItems = createTable(
     nameIndex: index('shopping_list_name_idx').on(table.name),
   })
 )
+
+export const userPreferences = createTable('user_preferences', {
+  userId: text('user_id').primaryKey(),
+  hasSeenGuide: boolean('has_seen_guide').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
+})

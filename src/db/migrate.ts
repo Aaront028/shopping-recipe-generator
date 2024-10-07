@@ -11,25 +11,35 @@ const db = drizzle(sql)
 async function main() {
   console.log('Running migrations...')
 
-  // Apply the SQL migration
-  const migrationSQL = fs.readFileSync(
-    path.join(
-      __dirname,
-      '../../drizzle/0006_add_user_id_to_shopping_tables.sql'
-    ),
-    'utf8'
-  )
-  await sql.unsafe(migrationSQL)
+  try {
+    // Apply the SQL migration for user preferences
+    const migrationSQL = fs.readFileSync(
+      path.join(__dirname, '../../drizzle/0008_add_user_preferences_table.sql'),
+      'utf8'
+    )
+    console.log('Executing SQL:', migrationSQL)
+    await sql.unsafe(migrationSQL)
+    console.log(
+      'Custom SQL migration for user preferences applied successfully'
+    )
 
-  // Run Drizzle migrations
-  await migrate(db, { migrationsFolder: './drizzle' })
+    // Run Drizzle migrations
+    await migrate(db, { migrationsFolder: './drizzle' })
+    console.log('Drizzle migrations completed successfully')
 
-  console.log('Migrations complete!')
-  process.exit(0)
+    console.log('All migrations completed successfully!')
+  } catch (error) {
+    console.error('Migration error:', error)
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+  } finally {
+    await sql.end()
+  }
 }
 
 main().catch((err) => {
-  console.error('Migration failed!')
-  console.error(err)
+  console.error('Unhandled error during migration:', err)
   process.exit(1)
 })
