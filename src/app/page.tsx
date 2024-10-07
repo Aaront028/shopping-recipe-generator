@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { format, addDays, isBefore, isAfter } from 'date-fns'
 import React from 'react'
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 const categories = ["Produce", "Meat", "Dairy", "Grains", "Other"]
 const units = ["piece(s)", "g", "kg", "ml", "l", "cup(s)", "tbsp", "tsp", "oz", "lb", "bunch(es)"]
@@ -311,7 +312,7 @@ export default function ShoppingApp() {
     }
   }
 
-  const handleUseRecipe = (recipe: Recipe) => {
+  const handleUseRecipe = async (recipe: Recipe) => {
     const updatedInventory = inventory.map(item => {
       const recipeIngredient = recipe.details && Array.from({ length: 20 }, (_, i) => i + 1)
         .map(i => ({
@@ -326,19 +327,39 @@ export default function ShoppingApp() {
       }
       return item
     })
-    setInventory(updatedInventory)
+
+    // Update the database for each changed item
+    for (const item of updatedInventory) {
+      const originalItem = inventory.find(i => i.id === item.id)
+      if (originalItem && originalItem.quantity !== item.quantity) {
+        await fetch('/api/inventory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            quantity: item.quantity,
+          }),
+        })
+      }
+    }
+
+    // Fetch the updated inventory from the server
+    await fetchInventory()
   }
 
   const addToInventory = async () => {
     const checkedItems = shoppingList.filter(item => item.checked);
     for (const item of checkedItems) {
-      const existingItem = inventory.find(invItem => invItem.name.toLowerCase() === item.name.toLowerCase());
+      const existingItem = inventory.find(invItem =>
+        invItem.name.toLowerCase() === item.name.toLowerCase() &&
+        invItem.unit === item.unit
+      );
       if (existingItem) {
         await fetch('/api/inventory', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...existingItem,
+            id: existingItem.id,
             quantity: existingItem.quantity + item.quantity,
           }),
         });
@@ -414,33 +435,34 @@ export default function ShoppingApp() {
 
   const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage)
 
+  // Add this hook to detect mobile screens
+  const isMobile = useMediaQuery("(max-width: 640px)")
+
   return (
     <div className="container mx-auto p-4">
-
-
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Shopping List</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex mb-4">
+          <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'flex-row space-x-2'} mb-4`}>
             <Input
               type="text"
               value={newItem}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItem(e.target.value)}
               placeholder="Add new item"
-              className="mr-2"
+              className={`${isMobile ? 'w-full' : 'flex-grow'}`}
             />
             <Input
               type="number"
               value={newItemQuantity}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItemQuantity(parseInt(e.target.value))}
               placeholder="Qty"
-              className="mr-2 w-20"
+              className={`${isMobile ? 'w-full' : 'w-20'}`}
               min="1"
             />
             <Select value={newItemCategory} onValueChange={setNewItemCategory}>
-              <SelectTrigger className="w-[180px] mr-2">
+              <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'}`}>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -450,7 +472,7 @@ export default function ShoppingApp() {
               </SelectContent>
             </Select>
             <Select value={newItemUnit} onValueChange={setNewItemUnit}>
-              <SelectTrigger className="w-[180px] mr-2">
+              <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'}`}>
                 <SelectValue placeholder="Unit" />
               </SelectTrigger>
               <SelectContent>
@@ -459,22 +481,27 @@ export default function ShoppingApp() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Add</Button>
+            <Button onClick={addItem} className={`${isMobile ? 'w-full' : 'whitespace-nowrap'}`}>
+              <Plus className="w-4 h-4 mr-2" /> Add Item
+            </Button>
           </div>
           <ul>
             {Array.isArray(shoppingList) ? (
               shoppingList.map((item) => (
-                <li key={item.id} className="flex items-center mb-2">
+                <li key={item.id} className="flex items-center mb-2 flex-wrap">
                   <input
                     type="checkbox"
                     checked={item.checked}
                     onChange={() => toggleItem(item.id, !item.checked)}
                     className="mr-2"
                   />
-                  <span className={item.checked ? "line-through" : ""}>
-                    {item.name} (Qty: {item.quantity} {item.unit}, Category: {item.category})
+                  <span className={`${item.checked ? "line-through" : ""} flex-grow`}>
+                    {item.name}
                   </span>
-                  <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="ml-auto">
+                  <span className="text-sm text-gray-500 mr-2">
+                    {item.quantity} {item.unit}, {item.category}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
                     <Trash className="w-4 h-4" />
                   </Button>
                 </li>
@@ -483,11 +510,11 @@ export default function ShoppingApp() {
               <li>No items in the shopping list</li>
             )}
           </ul>
-          <div className="flex justify-between mt-4">
-            <Button variant="outline" onClick={clearList}>
+          <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between'} mt-4`}>
+            <Button variant="outline" onClick={clearList} className={`${isMobile ? 'w-full' : ''}`}>
               <RefreshCw className="w-4 h-4 mr-2" /> Clear List
             </Button>
-            <Button onClick={addToInventory}>
+            <Button onClick={addToInventory} className={`${isMobile ? 'w-full' : ''}`}>
               <ShoppingCart className="w-4 h-4 mr-2" /> Add to Inventory
             </Button>
           </div>
@@ -508,126 +535,128 @@ export default function ShoppingApp() {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Expiration Date</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInventory.map((item) => (
-                <TableRow key={item.id} className={
-                  isExpired(item.expirationDate) ? "bg-red-100" :
-                    isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
-                }>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.quantity} {item.unit}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>
-                    {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
-                    {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
-                      <AlertTriangle className="inline-block ml-2 text-yellow-500" />
-                    )}
-                    {isExpired(item.expirationDate) && (
-                      <AlertTriangle className="inline-block ml-2 text-red-500" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Edit Inventory Item</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">
-                              Name
-                            </Label>
-                            <Input
-                              id="name"
-                              value={editingItem?.name || ''}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, name: e.target.value } : null)}
-                              className="col-span-3"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="quantity" className="text-right">
-                              Quantity
-                            </Label>
-                            <Input
-                              id="quantity"
-                              type="number"
-                              value={editingItem?.quantity || 0}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, quantity: parseInt(e.target.value) } : null)}
-                              className="col-span-3"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="unit" className="text-right">
-                              Unit
-                            </Label>
-                            <Select
-                              value={editingItem?.unit || 'piece(s)'}
-                              onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, unit: value } : null)}
-                            >
-                              <SelectTrigger className="w-[180px] col-span-3">
-                                <SelectValue placeholder="Unit" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {units.map(unit => (
-                                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="category" className="text-right">
-                              Category
-                            </Label>
-                            <Select
-                              value={editingItem?.category || 'Other'}
-                              onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, category: value } : null)}
-                            >
-                              <SelectTrigger className="w-[180px] col-span-3">
-                                <SelectValue placeholder="Category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map(category => (
-                                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="expirationDate" className="text-right">
-                              Expiration Date
-                            </Label>
-                            <Input
-                              id="expirationDate"
-                              type="date"
-                              value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, expirationDate: new Date(e.target.value).toISOString() } : null)}
-                              className="col-span-3"
-                            />
-                          </div>
-                        </div>
-                        <Button onClick={saveEditedItem}>Save Changes</Button>
-                      </DialogContent>
-                    </Dialog>
-                  </TableCell>
+          <div className={`${isMobile ? 'overflow-x-auto' : ''}`}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredInventory.map((item) => (
+                  <TableRow key={item.id} className={
+                    isExpired(item.expirationDate) ? "bg-red-100" :
+                      isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
+                  }>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell>{item.quantity} {item.unit}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
+                      {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
+                        <AlertTriangle className="inline-block ml-2 text-yellow-500" />
+                      )}
+                      {isExpired(item.expirationDate) && (
+                        <AlertTriangle className="inline-block ml-2 text-red-500" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Inventory Item</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="name" className="text-right">
+                                Name
+                              </Label>
+                              <Input
+                                id="name"
+                                value={editingItem?.name || ''}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, name: e.target.value } : null)}
+                                className="col-span-3"
+                              />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="quantity" className="text-right">
+                                Quantity
+                              </Label>
+                              <Input
+                                id="quantity"
+                                type="number"
+                                value={editingItem?.quantity || 0}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, quantity: parseInt(e.target.value) } : null)}
+                                className="col-span-3"
+                              />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="unit" className="text-right">
+                                Unit
+                              </Label>
+                              <Select
+                                value={editingItem?.unit || 'piece(s)'}
+                                onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, unit: value } : null)}
+                              >
+                                <SelectTrigger className="w-[180px] col-span-3">
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {units.map(unit => (
+                                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="category" className="text-right">
+                                Category
+                              </Label>
+                              <Select
+                                value={editingItem?.category || 'Other'}
+                                onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, category: value } : null)}
+                              >
+                                <SelectTrigger className="w-[180px] col-span-3">
+                                  <SelectValue placeholder="Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map(category => (
+                                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="expirationDate" className="text-right">
+                                Expiration Date
+                              </Label>
+                              <Input
+                                id="expirationDate"
+                                type="date"
+                                value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, expirationDate: new Date(e.target.value).toISOString() } : null)}
+                                className="col-span-3"
+                              />
+                            </div>
+                          </div>
+                          <Button onClick={saveEditedItem}>Save Changes</Button>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -645,7 +674,7 @@ export default function ShoppingApp() {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button onClick={suggestRecipes} className="mb-4" disabled={isLoadingRecipes}>
+          <Button onClick={suggestRecipes} className={`mb-4 ${isMobile ? 'w-full' : ''}`} disabled={isLoadingRecipes}>
             {isLoadingRecipes ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Loading Recipes

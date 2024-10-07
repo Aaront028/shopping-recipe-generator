@@ -34,15 +34,31 @@ export async function PUT(request: Request) {
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { id, ...updateData } = await request.json()
+  const { id, quantity: newQuantity, ...otherUpdateData } = await request.json()
+
+  // First, get the current item
+  const currentItem = await db
+    .select()
+    .from(inventoryItems)
+    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+    .limit(1)
+
+  if (currentItem.length === 0) {
+    return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+  }
+
+  // If a new quantity is provided, use it directly (don't add to current quantity)
+  const updateData = {
+    ...otherUpdateData,
+    ...(newQuantity !== undefined ? { quantity: newQuantity } : {}),
+  }
+
   const updatedItem = await db
     .update(inventoryItems)
     .set(updateData)
     .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
     .returning()
-  if (updatedItem.length === 0) {
-    return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-  }
+
   return NextResponse.json(updatedItem[0])
 }
 
