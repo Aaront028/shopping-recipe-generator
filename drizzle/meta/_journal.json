@@ -15,6 +15,27 @@
       "when": 1728253342212,
       "tag": "0001_fat_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1728260005704,
+      "tag": "0002_thankful_albert_cleary",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1728260321384,
+      "tag": "0003_robust_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1728262419410,
+      "tag": "0004_lonely_nick_fury",
+      "breakpoints": true
     }
   ]
 }

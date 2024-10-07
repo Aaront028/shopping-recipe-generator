@@ -24,6 +24,7 @@ export const inventoryItems = createTable(
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
     updatedAt: timestamp('updatedAt', { withTimezone: true }),
+    userId: text('user_id'), // Make this nullable
   },
   (table) => ({
     nameIndex: index('inventory_name_idx').on(table.name),
@@ -38,11 +39,12 @@ export const shoppingListItems = createTable(
     quantity: integer('quantity').notNull(),
     category: text('category').notNull(),
     unit: text('unit').notNull(),
-    checked: boolean('checked').notNull(),
+    checked: boolean('checked').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
     updatedAt: timestamp('updatedAt', { withTimezone: true }),
+    userId: text('user_id'), // Make this nullable
   },
   (table) => ({
     nameIndex: index('shopping_list_name_idx').on(table.name),

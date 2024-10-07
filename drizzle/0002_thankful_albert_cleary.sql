@@ -1,0 +1,1 @@
+ALTER TABLE "shopping_list_shopping_list_item" ADD COLUMN "user_id" uuid;

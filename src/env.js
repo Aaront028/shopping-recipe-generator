@@ -1,6 +1,8 @@
 import { createEnv } from '@t3-oss/env-nextjs'
 import { z } from 'zod'
 
+console.log('Loaded POSTGRES_URL:', process.env.POSTGRES_URL)
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
@@ -42,3 +44,5 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 })
+
+console.log('Validated POSTGRES_URL:', env.POSTGRES_URL)

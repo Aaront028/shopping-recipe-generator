@@ -142,16 +142,37 @@ export default function ShoppingApp() {
   }, []);
 
   const fetchShoppingList = async () => {
-    const response = await fetch('/api/shopping-list');
-    const data = await response.json();
-    console.log('Fetched shopping list:', data);
-    setShoppingList(data);
+    try {
+      const response = await fetch('/api/shopping-list');
+      if (!response.ok) {
+        throw new Error('Failed to fetch shopping list');
+      }
+      const data = await response.json();
+      console.log('Fetched shopping list:', data);
+      if (Array.isArray(data)) {
+        setShoppingList(data);
+      } else {
+        console.error('Fetched shopping list is not an array:', data);
+        setShoppingList([]);
+      }
+    } catch (error) {
+      console.error('Error fetching shopping list:', error);
+      setShoppingList([]);
+    }
   };
 
   const fetchInventory = async () => {
-    const response = await fetch('/api/inventory');
-    const data = await response.json();
-    setInventory(data);
+    try {
+      const response = await fetch('/api/inventory');
+      if (!response.ok) {
+        throw new Error('Failed to fetch inventory');
+      }
+      const data = await response.json();
+      console.log('Fetched inventory data:', data); // Add this line
+      setInventory(data);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
   };
 
   useEffect(() => {
@@ -169,18 +190,29 @@ export default function ShoppingApp() {
         category: newItemCategory,
         checked: false,
         unit: newItemUnit
+        // Note: We're not including userId here
       };
-      const response = await fetch('/api/shopping-list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-      });
-      const newItemWithId = await response.json();
-      setShoppingList(prevList => [...prevList, newItemWithId]);
-      setNewItem("");
-      setNewItemQuantity(1);
-      setNewItemCategory("Other");
-      setNewItemUnit("piece(s)");
+      try {
+        const response = await fetch('/api/shopping-list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const newItemWithId = await response.json();
+        setShoppingList(prevList => [...prevList, newItemWithId]);
+        setNewItem("");
+        setNewItemQuantity(1);
+        setNewItemCategory("Other");
+        setNewItemUnit("piece(s)");
+      } catch (error) {
+        console.error("Error adding item:", error);
+        // You might want to show an error message to the user here
+      }
     }
   };
 
@@ -349,10 +381,14 @@ export default function ShoppingApp() {
     }
   };
 
-  const filteredInventory = inventory.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredInventory = Array.isArray(inventory)
+    ? inventory.filter(item =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : [];
+
+  console.log('Filtered inventory:', filteredInventory); // Add this line
 
   const filteredRecipes = suggestedRecipes.filter(recipe =>
     recipe.strMeal.toLowerCase().includes(searchTerm.toLowerCase())
@@ -380,7 +416,7 @@ export default function ShoppingApp() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Shopping App</h1>
+
 
       <Card className="mb-8">
         <CardHeader>
@@ -426,22 +462,26 @@ export default function ShoppingApp() {
             <Button onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Add</Button>
           </div>
           <ul>
-            {shoppingList.map((item) => (
-              <li key={item.id} className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => toggleItem(item.id, !item.checked)}
-                  className="mr-2"
-                />
-                <span className={item.checked ? "line-through" : ""}>
-                  {item.name} (Qty: {item.quantity} {item.unit}, Category: {item.category})
-                </span>
-                <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="ml-auto">
-                  <Trash className="w-4 h-4" />
-                </Button>
-              </li>
-            ))}
+            {Array.isArray(shoppingList) ? (
+              shoppingList.map((item) => (
+                <li key={item.id} className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    checked={item.checked}
+                    onChange={() => toggleItem(item.id, !item.checked)}
+                    className="mr-2"
+                  />
+                  <span className={item.checked ? "line-through" : ""}>
+                    {item.name} (Qty: {item.quantity} {item.unit}, Category: {item.category})
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="ml-auto">
+                    <Trash className="w-4 h-4" />
+                  </Button>
+                </li>
+              ))
+            ) : (
+              <li>No items in the shopping list</li>
+            )}
           </ul>
           <div className="flex justify-between mt-4">
             <Button variant="outline" onClick={clearList}>

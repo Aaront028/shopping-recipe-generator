@@ -1,55 +1,68 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { shoppingListItems } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
+import { auth } from '@clerk/nextjs/server'
 
 export async function GET() {
-  const items = await db.select().from(shoppingListItems)
+  const { userId } = auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const items = await db
+    .select()
+    .from(shoppingListItems)
+    .where(eq(shoppingListItems.userId, userId))
   return NextResponse.json(items)
 }
 
 export async function POST(request: Request) {
+  const { userId } = auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const body = await request.json()
-  const newItem = await db.insert(shoppingListItems).values(body).returning()
-  return NextResponse.json(newItem[0])
+  try {
+    const newItem = await db
+      .insert(shoppingListItems)
+      .values({ ...body, userId })
+      .returning()
+    return NextResponse.json(newItem[0])
+  } catch (error) {
+    console.error('Error inserting item:', error)
+    return NextResponse.json({ error: 'Failed to add item' }, { status: 500 })
+  }
 }
 
 export async function PUT(request: Request) {
-  const { id, checked } = await request.json()
-  const itemId = parseInt(id, 10)
-
-  console.log('Received PUT request with id:', itemId, 'and checked:', checked)
-
-  if (isNaN(itemId)) {
-    return NextResponse.json({ error: 'Invalid item ID' }, { status: 400 })
+  const { userId } = auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-
-  try {
-    const updatedItem = await db
-      .update(shoppingListItems)
-      .set({ checked })
-      .where(eq(shoppingListItems.id, itemId))
-      .returning()
-
-    console.log('Updated item:', updatedItem)
-
-    if (updatedItem.length === 0) {
-      console.log('No item found with id:', itemId)
-      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-    }
-
-    return NextResponse.json(updatedItem[0])
-  } catch (error) {
-    console.error('Error updating shopping list item:', error)
-    return NextResponse.json(
-      { error: 'Failed to update shopping list item' },
-      { status: 500 }
+  const { id, ...updateData } = await request.json()
+  const updatedItem = await db
+    .update(shoppingListItems)
+    .set(updateData)
+    .where(
+      and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, userId))
     )
+    .returning()
+  if (updatedItem.length === 0) {
+    return NextResponse.json({ error: 'Item not found' }, { status: 404 })
   }
+  return NextResponse.json(updatedItem[0])
 }
 
 export async function DELETE(request: Request) {
-  const body = await request.json()
-  await db.delete(shoppingListItems).where(eq(shoppingListItems.id, body.id))
+  const { userId } = auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const { id } = await request.json()
+  await db
+    .delete(shoppingListItems)
+    .where(
+      and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, userId))
+    )
   return NextResponse.json({ success: true })
 }
