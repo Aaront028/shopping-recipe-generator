@@ -756,31 +756,33 @@ export default function ShoppingApp() {
                   </AnimatePresence>
                 </>
               )}
-              <ul>
-                {Array.isArray(shoppingList) ? (
-                  shoppingList.map((item) => (
-                    <li key={item.id} className="flex items-center mb-2 flex-wrap">
-                      <input
-                        type="checkbox"
-                        checked={item.checked}
-                        onChange={() => toggleItem(item.id, !item.checked)}
-                        className="mr-2"
-                      />
-                      <span className={`${item.checked ? "line-through" : ""} flex-grow`}>
-                        {item.name}
-                      </span>
-                      <span className="text-sm text-gray-500 mr-2">
-                        {item.quantity} {item.unit}, {item.category}
-                      </span>
-                      <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
-                        <Trash className="w-4 h-4" />
-                      </Button>
-                    </li>
-                  ))
-                ) : (
-                  <li>No items in the shopping list</li>
-                )}
-              </ul>
+              <div className="h-[300px] overflow-y-auto scrollbar-hide">
+                <ul>
+                  {Array.isArray(shoppingList) ? (
+                    shoppingList.map((item) => (
+                      <li key={item.id} className="flex items-center mb-2 flex-wrap">
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={() => toggleItem(item.id, !item.checked)}
+                          className="mr-2"
+                        />
+                        <span className={`${item.checked ? "line-through" : ""} flex-grow`}>
+                          {item.name}
+                        </span>
+                        <span className="text-sm text-gray-500 mr-2">
+                          {item.quantity} {item.unit}, {item.category}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
+                          <Trash className="w-4 h-4" />
+                        </Button>
+                      </li>
+                    ))
+                  ) : (
+                    <li>No items in the shopping list</li>
+                  )}
+                </ul>
+              </div>
               <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between'} mt-4`}>
                 <Button variant="outline" onClick={clearList} className={`${isMobile ? 'w-full' : ''}`}>
                   <RefreshCw className="w-4 h-4 mr-2" /> Clear List
@@ -810,7 +812,7 @@ export default function ShoppingApp() {
                   className="bg-white"
                 />
               </div>
-              <div className={`${isMobile ? 'overflow-x-auto' : ''} rounded-lg border border-gray-200`}>
+              <div className="h-[300px] overflow-y-auto scrollbar-hide">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
