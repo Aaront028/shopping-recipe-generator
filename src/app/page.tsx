@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -151,21 +151,6 @@ export default function ShoppingApp() {
   const { isSignedIn, user } = useUser()
 
   const [, setHasExistingItems] = useState(false)
-
-  const [expandedRecipes, setExpandedRecipes] = useState<{ [key: string]: boolean }>({})
-
-  const toggleRecipeExpansion = (recipeId: string) => {
-    setExpandedRecipes(prev => ({ ...prev, [recipeId]: !prev[recipeId] }))
-  }
-
-  const groupInstructions = (instructions: string) => {
-    const steps = instructions.split('.').filter(step => step.trim() !== '')
-    const groups = []
-    for (let i = 0; i < steps.length; i += 5) {
-      groups.push(steps.slice(i, i + 5))
-    }
-    return groups
-  }
 
   useEffect(() => {
     if (isSignedIn && user) {
