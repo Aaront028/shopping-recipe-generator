@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -573,427 +573,450 @@ export default function ShoppingApp() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Shopping List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!isLoadingPreferences && hasSeenGuide === false && (
-            <>
-              {showGuide && (
-                <motion.div
-                  initial={{ opacity: 0.8, x: -5 }}
-                  animate={{
-                    opacity: [0.8, 1, 0.8],
-                    x: [-5, 0, -5],
-                    transition: {
-                      duration: 3,
-                      repeat: Infinity,
-                      repeatType: "reverse",
-                      ease: "easeInOut"
-                    }
-                  }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="mb-4 p-2 bg-blue-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
-                >
-                  Welcome! Let&apos;s start your shopping list
-                </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8">
+      <div className="container mx-auto px-4">
+        <header className="text-center mb-12">
+          <p className="text-xl text-gray-600">Your smart kitchen companion</p>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <ShoppingCart className="w-6 h-6 mr-2 text-blue-500" />
+                Shopping List
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!isLoadingPreferences && hasSeenGuide === false && (
+                <>
+                  {showGuide && (
+                    <motion.div
+                      initial={{ opacity: 0.8, x: -5 }}
+                      animate={{
+                        opacity: [0.8, 1, 0.8],
+                        x: [-5, 0, -5],
+                        transition: {
+                          duration: 3,
+                          repeat: Infinity,
+                          repeatType: "reverse",
+                          ease: "easeInOut"
+                        }
+                      }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="mb-4 p-2 bg-blue-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
+                    >
+                      Welcome! Let&apos;s start your shopping list
+                    </motion.div>
+                  )}
+                </>
               )}
-            </>
-          )}
-          <div className={`${isMobile ? 'flex-col space-y-2' : 'flex flex-row space-x-2'} mb-4`}>
-            <div className="relative flex-grow">
-              <div className="flex items-center">
-                {!isLoadingPreferences && hasSeenGuide === false && (
-                  <>
+              <div className={`${isMobile ? 'flex-col space-y-2' : 'flex flex-row space-x-2'} mb-4`}>
+                <div className="relative flex-grow">
+                  <div className="flex items-center">
+                    {!isLoadingPreferences && hasSeenGuide === false && (
+                      <>
+                        <AnimatePresence>
+                          {showGuide && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="mr-2 p-2 bg-blue-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
+                            >
+                              Enter your shopping item
+                              <div className="absolute top-1/2 right-[-8px] w-0 h-0
+                                border-t-[8px] border-t-transparent
+                                border-l-[8px] border-l-blue-500
+                                border-b-[8px] border-b-transparent
+                                transform -translate-y-1/2">
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <AnimatePresence>
+                          {showSecondGuide && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute top-[-40px] left-0 p-2 bg-green-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
+                            >
+                              Great! Now enter the item details
+                              <div className="absolute bottom-[-8px] left-4 w-0 h-0
+                                border-l-[8px] border-l-transparent
+                                border-t-[8px] border-t-green-500
+                                border-r-[8px] border-r-transparent">
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                    <Input
+                      ref={inputRef}
+                      type="text"
+                      value={newItem}
+                      onChange={handleInputChange}
+                      onFocus={handleInputFocus}
+                      placeholder="Add new item"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Input
+                    type="number"
+                    value={newItemQuantity}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItemQuantity(parseInt(e.target.value))}
+                    placeholder="Qty"
+                    className={`${isMobile ? 'w-1/2' : 'w-20'}`}
+                    min="1"
+                  />
+                  <Select value={newItemUnit} onValueChange={setNewItemUnit}>
+                    <SelectTrigger className={`${isMobile ? 'w-1/2' : 'w-[100px]'}`}>
+                      <SelectValue placeholder="Unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map(unit => (
+                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Select value={newItemCategory} onValueChange={setNewItemCategory}>
+                  <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'}`}>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative">
+                  {!hasSeenGuide && (
                     <AnimatePresence>
-                      {showGuide && (
+                      {showThirdGuide && (
                         <motion.div
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="mr-2 p-2 bg-blue-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
+                          className="absolute top-[-40px] right-0 p-2 bg-purple-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
                         >
-                          Enter your shopping item
-                          <div className="absolute top-1/2 right-[-8px] w-0 h-0
-                            border-t-[8px] border-t-transparent
-                            border-l-[8px] border-l-blue-500
-                            border-b-[8px] border-b-transparent
-                            transform -translate-y-1/2">
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    <AnimatePresence>
-                      {showSecondGuide && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="absolute top-[-40px] left-0 p-2 bg-green-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
-                        >
-                          Great! Now enter the item details
-                          <div className="absolute bottom-[-8px] left-4 w-0 h-0
+                          Click to add the item
+                          <div className="absolute bottom-[-8px] right-4 w-0 h-0
                             border-l-[8px] border-l-transparent
-                            border-t-[8px] border-t-green-500
+                            border-t-[8px] border-t-purple-500
                             border-r-[8px] border-r-transparent">
                           </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </>
+                  )}
+                  <Button ref={addButtonRef} onClick={handleAddItem} className={`${isMobile ? 'w-full' : 'whitespace-nowrap'}`}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Item
+                  </Button>
+                </div>
+              </div>
+              {!hasSeenGuide && (
+                <>
+                  <AnimatePresence>
+                    {showCheckOffGuide && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="mb-4 p-2 bg-yellow-500 text-white rounded-lg shadow-lg z-10"
+                      >
+                        Remember to check off items as you add them to your trolley!
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {showAddToInventoryGuide && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="mb-4 p-2 bg-green-500 text-white rounded-lg shadow-lg z-10"
+                      >
+                        Great job! You&apos;ve checked off all items. Click &quot;Add to Inventory&quot; to update your stock.
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
+              <ul>
+                {Array.isArray(shoppingList) ? (
+                  shoppingList.map((item) => (
+                    <li key={item.id} className="flex items-center mb-2 flex-wrap">
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={() => toggleItem(item.id, !item.checked)}
+                        className="mr-2"
+                      />
+                      <span className={`${item.checked ? "line-through" : ""} flex-grow`}>
+                        {item.name}
+                      </span>
+                      <span className="text-sm text-gray-500 mr-2">
+                        {item.quantity} {item.unit}, {item.category}
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </li>
+                  ))
+                ) : (
+                  <li>No items in the shopping list</li>
                 )}
+              </ul>
+              <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between'} mt-4`}>
+                <Button variant="outline" onClick={clearList} className={`${isMobile ? 'w-full' : ''}`}>
+                  <RefreshCw className="w-4 h-4 mr-2" /> Clear List
+                </Button>
+                <Button onClick={addToInventory} className={`${isMobile ? 'w-full' : ''} bg-green-500 hover:bg-green-600`}>
+                  <ShoppingCart className="w-4 h-4 mr-2" /> Add to Inventory
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <Package className="w-6 h-6 mr-2 text-green-500" />
+                Inventory
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex items-center">
+                <Search className="w-4 h-4 mr-2 text-gray-400" />
                 <Input
-                  ref={inputRef}
                   type="text"
-                  value={newItem}
-                  onChange={handleInputChange}
-                  onFocus={handleInputFocus}
-                  placeholder="Add new item"
-                  className="w-full"
+                  placeholder="Search inventory..."
+                  value={searchTerm}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  className="bg-white"
                 />
               </div>
-            </div>
-            <div className="flex space-x-2">
-              <Input
-                type="number"
-                value={newItemQuantity}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItemQuantity(parseInt(e.target.value))}
-                placeholder="Qty"
-                className={`${isMobile ? 'w-1/2' : 'w-20'}`}
-                min="1"
-              />
-              <Select value={newItemUnit} onValueChange={setNewItemUnit}>
-                <SelectTrigger className={`${isMobile ? 'w-1/2' : 'w-[100px]'}`}>
-                  <SelectValue placeholder="Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map(unit => (
-                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={newItemCategory} onValueChange={setNewItemCategory}>
-              <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[140px]'}`}>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative">
-              {!hasSeenGuide && (
-                <AnimatePresence>
-                  {showThirdGuide && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute top-[-40px] right-0 p-2 bg-purple-500 text-white rounded-lg shadow-lg z-10 whitespace-nowrap"
-                    >
-                      Click to add the item
-                      <div className="absolute bottom-[-8px] right-4 w-0 h-0
-                        border-l-[8px] border-l-transparent
-                        border-t-[8px] border-t-purple-500
-                        border-r-[8px] border-r-transparent">
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              )}
-              <Button ref={addButtonRef} onClick={handleAddItem} className={`${isMobile ? 'w-full' : 'whitespace-nowrap'}`}>
-                <Plus className="w-4 h-4 mr-2" /> Add Item
-              </Button>
-            </div>
-          </div>
-          {!hasSeenGuide && (
-            <>
-              <AnimatePresence>
-                {showCheckOffGuide && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-4 p-2 bg-yellow-500 text-white rounded-lg shadow-lg z-10"
-                  >
-                    Remember to check off items as you add them to your trolley!
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {showAddToInventoryGuide && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-4 p-2 bg-green-500 text-white rounded-lg shadow-lg z-10"
-                  >
-                    Great job! You&apos;ve checked off all items. Click &quot;Add to Inventory&quot; to update your stock.
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
-          <ul>
-            {Array.isArray(shoppingList) ? (
-              shoppingList.map((item) => (
-                <li key={item.id} className="flex items-center mb-2 flex-wrap">
-                  <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => toggleItem(item.id, !item.checked)}
-                    className="mr-2"
-                  />
-                  <span className={`${item.checked ? "line-through" : ""} flex-grow`}>
-                    {item.name}
-                  </span>
-                  <span className="text-sm text-gray-500 mr-2">
-                    {item.quantity} {item.unit}, {item.category}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
-                    <Trash className="w-4 h-4" />
-                  </Button>
-                </li>
-              ))
-            ) : (
-              <li>No items in the shopping list</li>
-            )}
-          </ul>
-          <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between'} mt-4`}>
-            <Button variant="outline" onClick={clearList} className={`${isMobile ? 'w-full' : ''}`}>
-              <RefreshCw className="w-4 h-4 mr-2" /> Clear List
-            </Button>
-            <Button onClick={addToInventory} className={`${isMobile ? 'w-full' : ''}`}>
-              <ShoppingCart className="w-4 h-4 mr-2" /> Add to Inventory
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Inventory</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center">
-            <Search className="w-4 h-4 mr-2" />
-            <Input
-              type="text"
-              placeholder="Search inventory..."
-              value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className={`${isMobile ? 'overflow-x-auto' : ''}`}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInventory.map((item) => (
-                  <TableRow key={item.id} className={
-                    isExpired(item.expirationDate) ? "bg-red-100" :
-                      isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
-                  }>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.quantity} {item.unit}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
-                      {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
-                        <AlertTriangle className="inline-block ml-2 text-yellow-500" />
-                      )}
-                      {isExpired(item.expirationDate) && (
-                        <AlertTriangle className="inline-block ml-2 text-red-500" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => {
-                            startEditingItem(item);
-                            setIsDialogOpen(true);
-                          }}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Edit Inventory Item</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="name" className="text-right">Name</Label>
-                              <Input
-                                id="name"
-                                value={editingItem?.name || ''}
-                                onChange={(e) => handleEditChange('name', e.target.value)}
-                                className="col-span-3"
-                              />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="quantity" className="text-right">Quantity</Label>
-                              <Input
-                                id="quantity"
-                                type="number"
-                                value={editingItem?.quantity || 0}
-                                onChange={(e) => handleEditChange('quantity', parseInt(e.target.value))}
-                                className="col-span-3"
-                              />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="unit" className="text-right">Unit</Label>
-                              <Select
-                                value={editingItem?.unit || 'piece(s)'}
-                                onValueChange={(value: string) => handleEditChange('unit', value)}
-                              >
-                                <SelectTrigger className="w-[180px] col-span-3">
-                                  <SelectValue placeholder="Unit" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {units.map(unit => (
-                                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="category" className="text-right">Category</Label>
-                              <Select
-                                value={editingItem?.category || 'Other'}
-                                onValueChange={(value: string) => handleEditChange('category', value)}
-                              >
-                                <SelectTrigger className="w-[180px] col-span-3">
-                                  <SelectValue placeholder="Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categories.map(category => (
-                                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="expirationDate" className="text-right">Expiration Date</Label>
-                              <Input
-                                id="expirationDate"
-                                type="date"
-                                value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
-                                onChange={(e) => handleEditChange('expirationDate', e.target.value)}
-                                className="col-span-3"
-                              />
-                            </div>
-                          </div>
-                          <Button onClick={saveEditedItem}>Save Changes</Button>
-                        </DialogContent>
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Recipe Suggestions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center">
-            <Search className="w-4 h-4 mr-2" />
-            <Input
-              type="text"
-              placeholder="Search recipes..."
-              value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Button onClick={suggestRecipes} className={`mb-4 ${isMobile ? 'w-full' : ''}`} disabled={isLoadingRecipes}>
-            {isLoadingRecipes ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Loading Recipes
-              </>
-            ) : (
-              <>
-                <ChefHat className="w-4 h-4 mr-2" /> Suggest Recipes
-              </>
-            )}
-          </Button>
-          {paginatedRecipes.length > 0 ? (
-            <>
-              <ul>
-                {paginatedRecipes.map((recipe) => (
-                  <li key={recipe.idMeal} className="mb-8 p-6 border rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-2xl font-semibold">{recipe.strMeal}</h3>
-                      <span className={`px-2 py-1 rounded-full text-sm ${recipe.matchedIngredients === recipe.totalIngredients ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                        {recipe.matchedIngredients} / {recipe.totalIngredients} ingredients available
-                      </span>
-                    </div>
-                    {recipe.details && (
-                      <div>
-                        <h4 className="text-lg font-medium mb-2">Ingredients:</h4>
-                        <ul className="list-disc list-inside mb-4">
-                          {Array.from({ length: 20 }, (_, i) => i + 1).map((i) => {
-                            const ingredient = recipe.details?.[`strIngredient${i}`]
-                            const measure = recipe.details?.[`strMeasure${i}`]
-                            if (ingredient && measure) {
-                              const isAvailable = inventory.some(item =>
-                                ingredient.toLowerCase().includes(item.name.toLowerCase())
-                              )
-                              return (
-                                <li key={i} className={isAvailable ? "text-green-600" : "text-red-500"}>
-                                  {`${measure} ${ingredient}`} {isAvailable ? "(available)" : "(missing)"}
-                                </li>
-                              )
-                            }
-                            return null
-                          }).filter(Boolean)}
-                        </ul>
-                        <h4 className="text-lg font-medium mb-2">Instructions:</h4>
-                        <p>{recipe.details.strInstructions}</p>
-                      </div>
-                    )}
-                    <Button onClick={() => handleUseRecipe(recipe)} size="sm" className="mt-4">
-                      Use Recipe
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex justify-between items-center mt-4">
-                <Button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-2" /> Previous
-                </Button>
-                <span>Page {currentPage} of {totalPages}</span>
-                <Button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+              <div className={`${isMobile ? 'overflow-x-auto' : ''} rounded-lg border border-gray-200`}>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead>Item</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInventory.map((item) => (
+                      <TableRow key={item.id} className={
+                        isExpired(item.expirationDate) ? "bg-red-100" :
+                          isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
+                      }>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.quantity} {item.unit}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>
+                          {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
+                          {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
+                            <AlertTriangle className="inline-block ml-2 text-yellow-500" />
+                          )}
+                          {isExpired(item.expirationDate) && (
+                            <AlertTriangle className="inline-block ml-2 text-red-500" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                startEditingItem(item);
+                                setIsDialogOpen(true);
+                              }}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Inventory Item</DialogTitle>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="name" className="text-right">Name</Label>
+                                  <Input
+                                    id="name"
+                                    value={editingItem?.name || ''}
+                                    onChange={(e) => handleEditChange('name', e.target.value)}
+                                    className="col-span-3"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="quantity" className="text-right">Quantity</Label>
+                                  <Input
+                                    id="quantity"
+                                    type="number"
+                                    value={editingItem?.quantity || 0}
+                                    onChange={(e) => handleEditChange('quantity', parseInt(e.target.value))}
+                                    className="col-span-3"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="unit" className="text-right">Unit</Label>
+                                  <Select
+                                    value={editingItem?.unit || 'piece(s)'}
+                                    onValueChange={(value: string) => handleEditChange('unit', value)}
+                                  >
+                                    <SelectTrigger className="w-[180px] col-span-3">
+                                      <SelectValue placeholder="Unit" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {units.map(unit => (
+                                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="category" className="text-right">Category</Label>
+                                  <Select
+                                    value={editingItem?.category || 'Other'}
+                                    onValueChange={(value: string) => handleEditChange('category', value)}
+                                  >
+                                    <SelectTrigger className="w-[180px] col-span-3">
+                                      <SelectValue placeholder="Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {categories.map(category => (
+                                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="expirationDate" className="text-right">Expiration Date</Label>
+                                  <Input
+                                    id="expirationDate"
+                                    type="date"
+                                    value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => handleEditChange('expirationDate', e.target.value)}
+                                    className="col-span-3"
+                                  />
+                                </div>
+                              </div>
+                              <Button onClick={saveEditedItem}>Save Changes</Button>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            </>
-          ) : (
-            <p>No recipes suggested yet. Click &quot;Suggest Recipes&quot; to get started!</p>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="mt-8 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <ChefHat className="w-6 h-6 mr-2 text-yellow-500" />
+              Recipe Suggestions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 flex items-center">
+              <Search className="w-4 h-4 mr-2 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search recipes..."
+                value={searchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                className="bg-white"
+              />
+            </div>
+            <Button onClick={suggestRecipes} className={`mb-4 ${isMobile ? 'w-full' : ''} bg-yellow-500 hover:bg-yellow-600`} disabled={isLoadingRecipes}>
+              {isLoadingRecipes ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading Recipes
+                </>
+              ) : (
+                <>
+                  <ChefHat className="w-4 h-4 mr-2" /> Suggest Recipes
+                </>
+              )}
+            </Button>
+            {paginatedRecipes.length > 0 ? (
+              <>
+                <ul className="space-y-6">
+                  {paginatedRecipes.map((recipe) => (
+                    <li key={recipe.idMeal} className="bg-white p-6 rounded-lg shadow">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-2xl font-semibold text-gray-800">{recipe.strMeal}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${recipe.matchedIngredients === recipe.totalIngredients
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {recipe.matchedIngredients} / {recipe.totalIngredients} ingredients
+                        </span>
+                      </div>
+                      {recipe.details && (
+                        <div>
+                          <h4 className="text-lg font-medium mb-2 text-gray-700">Ingredients:</h4>
+                          <ul className="list-disc list-inside mb-4 space-y-1">
+                            {Array.from({ length: 20 }, (_, i) => i + 1).map((i) => {
+                              const ingredient = recipe.details?.[`strIngredient${i}`]
+                              const measure = recipe.details?.[`strMeasure${i}`]
+                              if (ingredient && measure) {
+                                const isAvailable = inventory.some(item =>
+                                  ingredient.toLowerCase().includes(item.name.toLowerCase())
+                                )
+                                return (
+                                  <li key={i} className={isAvailable ? "text-green-600" : "text-red-500"}>
+                                    {`${measure} ${ingredient}`} {isAvailable ? "(available)" : "(missing)"}
+                                  </li>
+                                )
+                              }
+                              return null
+                            }).filter(Boolean)}
+                          </ul>
+                          <h4 className="text-lg font-medium mb-2 text-gray-700">Instructions:</h4>
+                          <p className="text-gray-600">{recipe.details.strInstructions}</p>
+                        </div>
+                      )}
+                      <Button onClick={() => handleUseRecipe(recipe)} size="sm" className="mt-4 bg-blue-500 hover:bg-blue-600">
+                        Use Recipe
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex justify-between items-center mt-6">
+                  <Button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+                  </Button>
+                  <span className="text-gray-600">Page {currentPage} of {totalPages}</span>
+                  <Button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                  >
+                    Next <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-gray-600">No recipes suggested yet. Click &quot;Suggest Recipes&quot; to get started!</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
