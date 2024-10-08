@@ -39,18 +39,26 @@ export async function PUT(request: Request) {
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { id, ...updateData } = await request.json()
-  const updatedItem = await db
-    .update(shoppingListItems)
-    .set(updateData)
-    .where(
-      and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, userId))
+  const { id, checked } = await request.json()
+  try {
+    const updatedItem = await db
+      .update(shoppingListItems)
+      .set({ checked })
+      .where(
+        and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, userId))
+      )
+      .returning()
+    if (updatedItem.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    return NextResponse.json(updatedItem[0])
+  } catch (error) {
+    console.error('Error updating item:', error)
+    return NextResponse.json(
+      { error: 'Failed to update item' },
+      { status: 500 }
     )
-    .returning()
-  if (updatedItem.length === 0) {
-    return NextResponse.json({ error: 'Item not found' }, { status: 404 })
   }
-  return NextResponse.json(updatedItem[0])
 }
 
 export async function DELETE(request: Request) {

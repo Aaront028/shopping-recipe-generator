@@ -448,17 +448,49 @@ export default function ShoppingApp() {
     setEditingItem({ ...item })
   }
 
-  const saveEditedItem = async () => {
+  const handleEditChange = (field: keyof InventoryItem, value: string | number) => {
     if (editingItem) {
-      await fetch('/api/inventory', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingItem),
-      });
-      fetchInventory();
-      setEditingItem(null);
+      if (field === 'expirationDate') {
+        // Convert the string date to an ISO string
+        const date = new Date(value as string);
+        setEditingItem({ ...editingItem, [field]: date.toISOString() });
+      } else {
+        setEditingItem({ ...editingItem, [field]: value });
+      }
     }
   };
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const saveEditedItem = async () => {
+    if (editingItem) {
+      console.log('Sending edited item:', JSON.stringify(editingItem, null, 2))
+      try {
+        const response = await fetch('/api/inventory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editingItem),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update item');
+        }
+
+        const updatedItem = await response.json();
+        console.log('Received updated item:', JSON.stringify(updatedItem, null, 2))
+        setInventory(prevInventory =>
+          prevInventory.map(item =>
+            item.id === updatedItem.id ? updatedItem : item
+          )
+        );
+        setEditingItem(null); // Close the edit form
+        setIsDialogOpen(false); // Close the dialog
+      } catch (error) {
+        console.error('Error saving edited item:', error);
+        // Optionally, show an error message to the user
+      }
+    }
+  }
 
   const filteredInventory = Array.isArray(inventory)
     ? inventory.filter(item =>
@@ -786,9 +818,12 @@ export default function ShoppingApp() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Dialog>
+                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
+                          <Button variant="ghost" size="sm" onClick={() => {
+                            startEditingItem(item);
+                            setIsDialogOpen(true);
+                          }}>
                             <Edit className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
@@ -798,35 +833,29 @@ export default function ShoppingApp() {
                           </DialogHeader>
                           <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="name" className="text-right">
-                                Name
-                              </Label>
+                              <Label htmlFor="name" className="text-right">Name</Label>
                               <Input
                                 id="name"
                                 value={editingItem?.name || ''}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, name: e.target.value } : null)}
+                                onChange={(e) => handleEditChange('name', e.target.value)}
                                 className="col-span-3"
                               />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="quantity" className="text-right">
-                                Quantity
-                              </Label>
+                              <Label htmlFor="quantity" className="text-right">Quantity</Label>
                               <Input
                                 id="quantity"
                                 type="number"
                                 value={editingItem?.quantity || 0}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, quantity: parseInt(e.target.value) } : null)}
+                                onChange={(e) => handleEditChange('quantity', parseInt(e.target.value))}
                                 className="col-span-3"
                               />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="unit" className="text-right">
-                                Unit
-                              </Label>
+                              <Label htmlFor="unit" className="text-right">Unit</Label>
                               <Select
                                 value={editingItem?.unit || 'piece(s)'}
-                                onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, unit: value } : null)}
+                                onValueChange={(value: string) => handleEditChange('unit', value)}
                               >
                                 <SelectTrigger className="w-[180px] col-span-3">
                                   <SelectValue placeholder="Unit" />
@@ -839,12 +868,10 @@ export default function ShoppingApp() {
                               </Select>
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="category" className="text-right">
-                                Category
-                              </Label>
+                              <Label htmlFor="category" className="text-right">Category</Label>
                               <Select
                                 value={editingItem?.category || 'Other'}
-                                onValueChange={(value: string) => setEditingItem(editingItem ? { ...editingItem, category: value } : null)}
+                                onValueChange={(value: string) => handleEditChange('category', value)}
                               >
                                 <SelectTrigger className="w-[180px] col-span-3">
                                   <SelectValue placeholder="Category" />
@@ -857,14 +884,12 @@ export default function ShoppingApp() {
                               </Select>
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="expirationDate" className="text-right">
-                                Expiration Date
-                              </Label>
+                              <Label htmlFor="expirationDate" className="text-right">Expiration Date</Label>
                               <Input
                                 id="expirationDate"
                                 type="date"
                                 value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingItem(editingItem ? { ...editingItem, expirationDate: new Date(e.target.value).toISOString() } : null)}
+                                onChange={(e) => handleEditChange('expirationDate', e.target.value)}
                                 className="col-span-3"
                               />
                             </div>

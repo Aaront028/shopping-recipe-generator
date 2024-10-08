@@ -1,0 +1,2 @@
+ALTER TABLE "shopping_list_inventory_item" ALTER COLUMN "updatedAt" SET DEFAULT CURRENT_TIMESTAMP;--> statement-breakpoint
+ALTER TABLE "shopping_list_inventory_item" ALTER COLUMN "updatedAt" SET NOT NULL;

@@ -36,6 +36,20 @@
       "when": 1728262419410,
       "tag": "0004_lonely_nick_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1728354871788,
+      "tag": "0005_red_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1728356145264,
+      "tag": "0006_graceful_mindworm",
+      "breakpoints": true
     }
   ]
 }

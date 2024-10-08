@@ -27,6 +27,14 @@ async function main() {
     await migrate(db, { migrationsFolder: './drizzle' })
     console.log('Drizzle migrations completed successfully')
 
+    // Ensure proper date format for existing records
+    await sql`
+      UPDATE shopping_list_inventory_item
+      SET expiration_date = TO_DATE(expiration_date, 'YYYY-MM-DD')
+      WHERE expiration_date IS NOT NULL AND expiration_date != '';
+    `
+    console.log('Updated existing expiration dates to proper format')
+
     console.log('All migrations completed successfully!')
   } catch (error) {
     console.error('Migration error:', error)

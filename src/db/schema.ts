@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   timestamp,
+  date,
 } from 'drizzle-orm/pg-core'
 
 export const createTable = pgTableCreator((name) => `shopping_list_${name}`)
@@ -19,12 +20,14 @@ export const inventoryItems = createTable(
     quantity: integer('quantity').notNull(),
     category: text('category').notNull(),
     unit: text('unit').notNull(),
-    expirationDate: text('expiration_date').notNull(),
+    expirationDate: date('expiration_date').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp('updatedAt', { withTimezone: true }),
-    userId: text('user_id'), // Make this nullable
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    userId: text('user_id'),
   },
   (table) => ({
     nameIndex: index('inventory_name_idx').on(table.name),

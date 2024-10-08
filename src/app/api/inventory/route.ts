@@ -22,6 +22,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const body = await request.json()
+  if (body.expirationDate) {
+    body.expirationDate = new Date(body.expirationDate)
+      .toISOString()
+      .split('T')[0]
+  }
   const newItem = await db
     .insert(inventoryItems)
     .values({ ...body, userId })
@@ -34,32 +39,45 @@ export async function PUT(request: Request) {
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { id, quantity: newQuantity, ...otherUpdateData } = await request.json()
+  const { id, ...updateData } = await request.json()
 
-  // First, get the current item
-  const currentItem = await db
-    .select()
-    .from(inventoryItems)
-    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
-    .limit(1)
+  console.log('Received update data:', JSON.stringify(updateData, null, 2))
 
-  if (currentItem.length === 0) {
-    return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+  // Only update specific fields
+  const allowedFields = [
+    'name',
+    'quantity',
+    'category',
+    'unit',
+    'expirationDate',
+  ]
+  const cleanUpdateData = Object.fromEntries(
+    Object.entries(updateData).filter(([key]) => allowedFields.includes(key))
+  )
+
+  console.log('Clean update data:', JSON.stringify(cleanUpdateData, null, 2))
+
+  try {
+    const updatedItem = await db
+      .update(inventoryItems)
+      .set(cleanUpdateData)
+      .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+      .returning()
+    if (updatedItem.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    console.log('Updated item:', JSON.stringify(updatedItem[0], null, 2))
+    return NextResponse.json(updatedItem[0])
+  } catch (error) {
+    console.error('Error updating inventory item:', error)
+    return NextResponse.json(
+      {
+        error: 'Failed to update item',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    )
   }
-
-  // If a new quantity is provided, use it directly (don't add to current quantity)
-  const updateData = {
-    ...otherUpdateData,
-    ...(newQuantity !== undefined ? { quantity: newQuantity } : {}),
-  }
-
-  const updatedItem = await db
-    .update(inventoryItems)
-    .set(updateData)
-    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
-    .returning()
-
-  return NextResponse.json(updatedItem[0])
 }
 
 export async function DELETE(request: Request) {
