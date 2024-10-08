@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react'
+import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -151,6 +151,21 @@ export default function ShoppingApp() {
   const { isSignedIn, user } = useUser()
 
   const [, setHasExistingItems] = useState(false)
+
+  const [expandedRecipes, setExpandedRecipes] = useState<{ [key: string]: boolean }>({})
+
+  const toggleRecipeExpansion = (recipeId: string) => {
+    setExpandedRecipes(prev => ({ ...prev, [recipeId]: !prev[recipeId] }))
+  }
+
+  const groupInstructions = (instructions: string) => {
+    const steps = instructions.split('.').filter(step => step.trim() !== '')
+    const groups = []
+    for (let i = 0; i < steps.length; i += 5) {
+      groups.push(steps.slice(i, i + 5))
+    }
+    return groups
+  }
 
   useEffect(() => {
     if (isSignedIn && user) {
@@ -965,8 +980,8 @@ export default function ShoppingApp() {
                       </div>
                       {recipe.details && (
                         <div>
-                          <h4 className="text-lg font-medium mb-2 text-gray-700">Ingredients:</h4>
-                          <ul className="list-disc list-inside mb-4 space-y-1">
+                          <h4 className="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Ingredients:</h4>
+                          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
                             {Array.from({ length: 20 }, (_, i) => i + 1).map((i) => {
                               const ingredient = recipe.details?.[`strIngredient${i}`]
                               const measure = recipe.details?.[`strMeasure${i}`]
@@ -975,16 +990,31 @@ export default function ShoppingApp() {
                                   ingredient.toLowerCase().includes(item.name.toLowerCase())
                                 )
                                 return (
-                                  <li key={i} className={isAvailable ? "text-green-600" : "text-red-500"}>
-                                    {`${measure} ${ingredient}`} {isAvailable ? "(available)" : "(missing)"}
+                                  <li key={i} className={`flex items-center p-2 rounded-md ${isAvailable ? "bg-green-50" : "bg-red-50"}`}>
+                                    <span className={`w-2 h-2 rounded-full mr-2 ${isAvailable ? "bg-green-500" : "bg-red-500"}`}></span>
+                                    <span className={isAvailable ? "text-green-700" : "text-red-700"}>
+                                      {`${measure} ${ingredient}`}
+                                    </span>
                                   </li>
                                 )
                               }
                               return null
                             }).filter(Boolean)}
                           </ul>
-                          <h4 className="text-lg font-medium mb-2 text-gray-700">Instructions:</h4>
-                          <p className="text-gray-600">{recipe.details.strInstructions}</p>
+                          <h4 className="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Instructions:</h4>
+                          <ol className="space-y-4">
+                            {recipe.details.strInstructions
+                              .split('.')
+                              .filter(step => step.trim().length > 1) // Remove steps that are just single characters or empty
+                              .map((step, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-500 rounded-full mr-3 text-sm font-semibold">
+                                    {index + 1}
+                                  </span>
+                                  <p className="text-gray-700 mt-0.5">{step.trim()}.</p>
+                                </li>
+                              ))}
+                          </ol>
                         </div>
                       )}
                       <Button onClick={() => handleUseRecipe(recipe)} size="sm" className="mt-4 bg-blue-500 hover:bg-blue-600">
