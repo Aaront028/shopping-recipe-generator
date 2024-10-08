@@ -33,6 +33,7 @@ import React from 'react'
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/nextjs'
+import { Slider } from "@/components/ui/slider"
 
 const categories = ["Produce", "Meat", "Dairy", "Grains", "Other"]
 const units = ["piece(s)", "g", "kg", "ml", "l", "cup(s)", "tbsp", "tsp", "oz", "lb", "bunch(es)"]
@@ -151,6 +152,8 @@ export default function ShoppingApp() {
   const { isSignedIn, user } = useUser()
 
   const [, setHasExistingItems] = useState(false)
+
+  const [ingredientMatchPercentage, setIngredientMatchPercentage] = useState(80)
 
   useEffect(() => {
     if (isSignedIn && user) {
@@ -352,7 +355,13 @@ export default function ShoppingApp() {
         }
       })
 
-      const sortedRecipes = recipesWithIngredientMatch.sort((a, b) =>
+      // Filter recipes that match at least the specified percentage of ingredients
+      const filteredRecipes = recipesWithIngredientMatch.filter(recipe => {
+        const matchPercentage = (recipe.matchedIngredients / recipe.totalIngredients) * 100
+        return matchPercentage >= ingredientMatchPercentage
+      })
+
+      const sortedRecipes = filteredRecipes.sort((a, b) =>
         (b.matchedIngredients ?? 0) - (a.matchedIngredients ?? 0) ||
         (a.totalIngredients ?? 0) - (b.totalIngredients ?? 0)
       )
@@ -936,6 +945,20 @@ export default function ShoppingApp() {
                 value={searchTerm}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="bg-white"
+              />
+            </div>
+            <div className="mb-4">
+              <Label htmlFor="ingredientMatch" className="mb-2 block">
+                Minimum Ingredient Match: {ingredientMatchPercentage}%
+              </Label>
+              <Slider
+                id="ingredientMatch"
+                min={0}
+                max={100}
+                step={5}
+                value={[ingredientMatchPercentage]}
+                onValueChange={(value: number[]) => setIngredientMatchPercentage(value[0])}
+                className="w-full"
               />
             </div>
             <Button onClick={suggestRecipes} className={`mb-4 ${isMobile ? 'w-full' : ''} bg-yellow-500 hover:bg-yellow-600`} disabled={isLoadingRecipes}>
