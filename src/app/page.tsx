@@ -684,7 +684,7 @@ export default function ShoppingApp() {
           </CardHeader>
           <CardContent>
             <p className="text-center mb-6">
-              Please sign in to use the app and manage your shopping list.
+              Please sign in to use the app and manage your shopping list. If you don&apos;t have an account, you can use your gmail account and login with that.
             </p>
             <SignInButton mode="modal">
               <Button className="w-full">Sign In</Button>
