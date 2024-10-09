@@ -84,3 +84,62 @@
     display: none; /* Chrome, Safari and Opera */
   }
 }
+
+/* Custom Scrollbar Styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  overflow-y: scroll;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(74, 85, 104, 0.5);
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(45, 55, 72, 0.7);
+}
+
+/* Container for custom scrollbar */
+.custom-scrollbar-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-scrollbar-content {
+  width: 100%;
+  padding-right: 8px; /* Add padding to prevent content from being covered by scrollbar */
+  box-sizing: border-box;
+}
+
+/* Overlay scrollbar */
+.custom-scrollbar-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  background-color: rgba(203, 213, 224, 0.3);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.custom-scrollbar-container:hover::after {
+  opacity: 1;
+}
