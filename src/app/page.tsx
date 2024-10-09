@@ -45,6 +45,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { SignInButton } from '@clerk/nextjs'
+import Image from 'next/image'
 
 const categories = ["Produce", "Meat", "Dairy", "Grains", "Other"]
 const units = ["piece(s)", "g", "kg", "ml", "l", "cup(s)", "tbsp", "tsp", "oz", "lb", "bunch(es)"]
@@ -160,7 +162,7 @@ export default function ShoppingApp() {
   const addButtonRef = useRef<HTMLButtonElement>(null)
   const [hasSeenGuide, setHasSeenGuide] = useState<boolean | null>(null)
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true)
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn, isLoaded, user } = useUser()
 
   const [, setHasExistingItems] = useState(false)
 
@@ -661,9 +663,49 @@ export default function ShoppingApp() {
     }
   };
 
+  if (!isLoaded) {
+    return <div>Loading...</div>
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8 flex flex-col items-center justify-center relative">
+        <Image
+          src="/images/micheile-henderson-A6SRsOU3T3s-unsplash.jpg"
+          alt="Background"
+          layout="fill"
+          objectFit="cover"
+          quality={100}
+          className="opacity-20"
+        />
+        <Card className="w-full max-w-md relative z-10">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Welcome to CookShelf</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center mb-6">
+              Please sign in to use the app and manage your shopping list.
+            </p>
+            <SignInButton mode="modal">
+              <Button className="w-full">Sign In</Button>
+            </SignInButton>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8 relative">
+      <Image
+        src="/micheile-henderson-A6SRsOU3T3s-unsplash.jpg"
+        alt="Background"
+        layout="fill"
+        objectFit="cover"
+        quality={100}
+        className="opacity-20"
+      />
+      <div className="container mx-auto px-4 relative z-10">
         <header className="text-center mb-8">
           <p className="text-xl text-gray-600">Your smart kitchen companion</p>
         </header>
@@ -864,15 +906,17 @@ export default function ShoppingApp() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-grow flex flex-col overflow-hidden">
-              <div className="mb-4 flex items-center">
-                <Search className="w-4 h-4 mr-2 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search inventory..."
-                  value={searchTerm}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                  className="bg-white"
-                />
+              <div className="mb-6"> {/* Changed from mb-4 to mb-6 for more space */}
+                <div className="flex items-center bg-white rounded-md p-2 shadow-sm">
+                  <Search className="w-4 h-4 mr-2 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search inventory..."
+                    value={searchTerm}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                    className="bg-transparent border-none focus:ring-0 flex-grow"
+                  />
+                </div>
               </div>
               {/* Scrollable area for inventory */}
               <div className="flex-grow custom-scrollbar-container">
