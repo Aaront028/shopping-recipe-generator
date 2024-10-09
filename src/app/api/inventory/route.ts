@@ -86,8 +86,20 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const { id } = await request.json()
-  await db
-    .delete(inventoryItems)
-    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
-  return NextResponse.json({ success: true })
+  try {
+    const deletedItem = await db
+      .delete(inventoryItems)
+      .where(and(eq(inventoryItems.id, id), eq(inventoryItems.userId, userId)))
+      .returning()
+    if (deletedItem.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting inventory item:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete item' },
+      { status: 500 }
+    )
+  }
 }

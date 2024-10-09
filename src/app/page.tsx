@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react'
+import { Plus, Trash, RefreshCw, ChefHat, ShoppingCart, Edit, Search, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package, Trash2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,6 +34,17 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUser } from '@clerk/nextjs'
 import { Slider } from "@/components/ui/slider"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const categories = ["Produce", "Meat", "Dairy", "Grains", "Other"]
 const units = ["piece(s)", "g", "kg", "ml", "l", "cup(s)", "tbsp", "tsp", "oz", "lb", "bunch(es)"]
@@ -132,7 +143,7 @@ export default function ShoppingApp() {
   const [newItemQuantity, setNewItemQuantity] = useState(1)
   const [newItemCategory, setNewItemCategory] = useState("Other")
   const [newItemUnit, setNewItemUnit] = useState("piece(s)")
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
+  const [inventory, setInventory] = useState<(InventoryItem & { deleted?: boolean })[]>([])
   const [suggestedRecipes, setSuggestedRecipes] = useState<Recipe[]>([])
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -155,6 +166,9 @@ export default function ShoppingApp() {
 
   const [ingredientMatchPercentage, setIngredientMatchPercentage] = useState(80)
   const [showInputGuide, setShowInputGuide] = useState(false)
+
+  const [itemToDelete, setItemToDelete] = useState<number[]>([])
+  const [itemsToDelete, setItemsToDelete] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     if (isSignedIn && user) {
@@ -463,7 +477,6 @@ export default function ShoppingApp() {
   const handleEditChange = (field: keyof InventoryItem, value: string | number) => {
     if (editingItem) {
       if (field === 'expirationDate') {
-        // Convert the string date to an ISO string
         const date = new Date(value as string);
         setEditingItem({ ...editingItem, [field]: date.toISOString() });
       } else {
@@ -476,7 +489,6 @@ export default function ShoppingApp() {
 
   const saveEditedItem = async () => {
     if (editingItem) {
-      console.log('Sending edited item:', JSON.stringify(editingItem, null, 2))
       try {
         const response = await fetch('/api/inventory', {
           method: 'PUT',
@@ -489,20 +501,18 @@ export default function ShoppingApp() {
         }
 
         const updatedItem = await response.json();
-        console.log('Received updated item:', JSON.stringify(updatedItem, null, 2))
         setInventory(prevInventory =>
           prevInventory.map(item =>
             item.id === updatedItem.id ? updatedItem : item
           )
         );
-        setEditingItem(null); // Close the edit form
-        setIsDialogOpen(false); // Close the dialog
+        setEditingItem(null);
+        setIsDialogOpen(false);
       } catch (error) {
         console.error('Error saving edited item:', error);
-        // Optionally, show an error message to the user
       }
     }
-  }
+  };
 
   const filteredInventory = Array.isArray(inventory)
     ? inventory.filter(item =>
@@ -590,6 +600,96 @@ export default function ShoppingApp() {
         setShowAddToInventoryGuide(false)
       }
     }
+  }
+
+  const handleQuantityChange = async (id: number, newQuantity: number) => {
+    if (newQuantity < 0) return; // Prevent negative quantities
+
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, quantity: newQuantity }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update item quantity');
+      }
+
+      if (newQuantity === 0) {
+        // If quantity is 0, remove the item
+        await deleteInventoryItem(id);
+      } else {
+        // Update the inventory state
+        setInventory(prevInventory =>
+          prevInventory.map(item =>
+            item.id === id ? { ...item, quantity: newQuantity } : item
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating item quantity:', error);
+      // Optionally, show an error message to the user
+    }
+  };
+
+  const deleteInventoryItem = async (id: number) => {
+    try {
+      // Mark the item as deleted in the UI
+      setInventory(prev => prev.map(item =>
+        item.id === id ? { ...item, deleted: true } : item
+      ))
+
+      // Send delete request to the server
+      const response = await fetch('/api/inventory', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete item');
+      }
+
+      // Remove the item from the inventory state after animation
+      setTimeout(() => {
+        setInventory(prev => prev.filter(item => item.id !== id));
+      }, 300); // Adjust timing to match animation duration
+
+    } catch (error) {
+      console.error('Error deleting inventory item:', error);
+      // Optionally, show an error message to the user
+    }
+  };
+
+  const toggleItemForDeletion = (id: number) => {
+    setItemsToDelete(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const handleDeleteClick = () => {
+    if (itemsToDelete.size > 0) {
+      setItemToDelete(Array.from(itemsToDelete))
+    }
+  }
+
+  const confirmDelete = async () => {
+    for (const id of itemToDelete) {
+      await deleteInventoryItem(id)
+    }
+    setItemToDelete([])
+    setItemsToDelete(new Set())
+  }
+
+  const cancelDelete = () => {
+    setItemToDelete([])
   }
 
   return (
@@ -819,109 +919,71 @@ export default function ShoppingApp() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredInventory.map((item) => (
-                        <TableRow key={item.id} className={
-                          isExpired(item.expirationDate) ? "bg-red-100" :
-                            isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
-                        }>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.quantity} {item.unit}</TableCell>
-                          <TableCell>{item.category}</TableCell>
-                          <TableCell>
-                            {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
-                            {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
-                              <AlertTriangle className="inline-block ml-2 text-yellow-500" />
-                            )}
-                            {isExpired(item.expirationDate) && (
-                              <AlertTriangle className="inline-block ml-2 text-red-500" />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => {
-                                  startEditingItem(item);
-                                  setIsDialogOpen(true);
-                                }}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Edit Inventory Item</DialogTitle>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="name" className="text-right">Name</Label>
-                                    <Input
-                                      id="name"
-                                      value={editingItem?.name || ''}
-                                      onChange={(e) => handleEditChange('name', e.target.value)}
-                                      className="col-span-3"
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="quantity" className="text-right">Quantity</Label>
-                                    <Input
-                                      id="quantity"
-                                      type="number"
-                                      value={editingItem?.quantity || 0}
-                                      onChange={(e) => handleEditChange('quantity', parseInt(e.target.value))}
-                                      className="col-span-3"
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="unit" className="text-right">Unit</Label>
-                                    <Select
-                                      value={editingItem?.unit || 'piece(s)'}
-                                      onValueChange={(value: string) => handleEditChange('unit', value)}
-                                    >
-                                      <SelectTrigger className="w-[180px] col-span-3">
-                                        <SelectValue placeholder="Unit" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {units.map(unit => (
-                                          <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="category" className="text-right">Category</Label>
-                                    <Select
-                                      value={editingItem?.category || 'Other'}
-                                      onValueChange={(value: string) => handleEditChange('category', value)}
-                                    >
-                                      <SelectTrigger className="w-[180px] col-span-3">
-                                        <SelectValue placeholder="Category" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {categories.map(category => (
-                                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="expirationDate" className="text-right">Expiration Date</Label>
-                                    <Input
-                                      id="expirationDate"
-                                      type="date"
-                                      value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
-                                      onChange={(e) => handleEditChange('expirationDate', e.target.value)}
-                                      className="col-span-3"
-                                    />
-                                  </div>
-                                </div>
-                                <Button onClick={saveEditedItem}>Save Changes</Button>
-                              </DialogContent>
-                            </Dialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      <AnimatePresence>
+                        {filteredInventory.map((item) => (
+                          <motion.tr
+                            key={item.id}
+                            initial={{ opacity: 1 }}
+                            animate={{ opacity: item.deleted ? 0 : 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className={
+                              isExpired(item.expirationDate) ? "bg-red-100" :
+                                isExpiringSoon(item.expirationDate) ? "bg-yellow-100" : ""
+                            }
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={itemsToDelete.has(item.id)}
+                                onCheckedChange={() => toggleItemForDeletion(item.id)}
+                              />
+                            </TableCell>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell>{item.quantity} {item.unit}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>
+                              {format(new Date(item.expirationDate), 'MMM dd, yyyy')}
+                              {isExpiringSoon(item.expirationDate) && !isExpired(item.expirationDate) && (
+                                <AlertTriangle className="inline-block ml-2 text-yellow-500" />
+                              )}
+                              {isExpired(item.expirationDate) && (
+                                <AlertTriangle className="inline-block ml-2 text-red-500" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Edit Item</DialogTitle>
+                                    </DialogHeader>
+                                    {/* Add form fields for editing */}
+                                    <Button onClick={saveEditedItem}>Save Changes</Button>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
                     </TableBody>
                   </Table>
                 </div>
+              </div>
+              <div className="mt-4">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteClick}
+                  disabled={itemsToDelete.size === 0}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete Selected Items
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1053,6 +1115,21 @@ export default function ShoppingApp() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={itemToDelete.length > 0} onOpenChange={cancelDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {itemToDelete.length} item(s) from your inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
