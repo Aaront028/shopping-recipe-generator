@@ -170,6 +170,9 @@ export default function ShoppingApp() {
   const [itemToDelete, setItemToDelete] = useState<number[]>([])
   const [itemsToDelete, setItemsToDelete] = useState<Set<number>>(new Set())
 
+  // Add this near the top of your component, where other state variables are declared
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
   useEffect(() => {
     if (isSignedIn && user) {
       setIsLoadingPreferences(true)
@@ -474,17 +477,7 @@ export default function ShoppingApp() {
     setEditingItem({ ...item })
   }
 
-  const handleEditChange = (field: keyof InventoryItem, value: string | number) => {
-    if (editingItem) {
-      if (field === 'expirationDate') {
-        const date = new Date(value as string);
-        setEditingItem({ ...editingItem, [field]: date.toISOString() });
-      } else {
-        setEditingItem({ ...editingItem, [field]: value });
-      }
-    }
-  };
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const saveEditedItem = async () => {
@@ -507,7 +500,7 @@ export default function ShoppingApp() {
           )
         );
         setEditingItem(null);
-        setIsDialogOpen(false);
+        setIsEditDialogOpen(false); // Close the dialog
       } catch (error) {
         console.error('Error saving edited item:', error);
       }
@@ -602,37 +595,6 @@ export default function ShoppingApp() {
     }
   }
 
-  const handleQuantityChange = async (id: number, newQuantity: number) => {
-    if (newQuantity < 0) return; // Prevent negative quantities
-
-    try {
-      const response = await fetch('/api/inventory', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, quantity: newQuantity }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update item quantity');
-      }
-
-      if (newQuantity === 0) {
-        // If quantity is 0, remove the item
-        await deleteInventoryItem(id);
-      } else {
-        // Update the inventory state
-        setInventory(prevInventory =>
-          prevInventory.map(item =>
-            item.id === id ? { ...item, quantity: newQuantity } : item
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error updating item quantity:', error);
-      // Optionally, show an error message to the user
-    }
-  };
-
   const deleteInventoryItem = async (id: number) => {
     try {
       // Mark the item as deleted in the UI
@@ -691,6 +653,13 @@ export default function ShoppingApp() {
   const cancelDelete = () => {
     setItemToDelete([])
   }
+
+  // Add this function to handle edit changes
+  const handleEditChange = (field: string, value: string | number) => {
+    if (editingItem) {
+      setEditingItem({ ...editingItem, [field]: value });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8">
@@ -952,17 +921,86 @@ export default function ShoppingApp() {
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
-                                <Dialog>
+                                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                                   <DialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" onClick={() => startEditingItem(item)}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        startEditingItem(item);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                    >
                                       <Edit className="w-4 h-4" />
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent>
                                     <DialogHeader>
-                                      <DialogTitle>Edit Item</DialogTitle>
+                                      <DialogTitle>Edit Inventory Item</DialogTitle>
                                     </DialogHeader>
-                                    {/* Add form fields for editing */}
+                                    <div className="grid gap-4 py-4">
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">Name</Label>
+                                        <Input
+                                          id="name"
+                                          value={editingItem?.name || ''}
+                                          onChange={(e) => handleEditChange('name', e.target.value)}
+                                          className="col-span-3"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="quantity" className="text-right">Quantity</Label>
+                                        <Input
+                                          id="quantity"
+                                          type="number"
+                                          value={editingItem?.quantity || 0}
+                                          onChange={(e) => handleEditChange('quantity', parseInt(e.target.value))}
+                                          className="col-span-3"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="unit" className="text-right">Unit</Label>
+                                        <Select
+                                          value={editingItem?.unit || 'piece(s)'}
+                                          onValueChange={(value: string) => handleEditChange('unit', value)}
+                                        >
+                                          <SelectTrigger className="w-[180px] col-span-3">
+                                            <SelectValue placeholder="Unit" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {units.map(unit => (
+                                              <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="category" className="text-right">Category</Label>
+                                        <Select
+                                          value={editingItem?.category || 'Other'}
+                                          onValueChange={(value: string) => handleEditChange('category', value)}
+                                        >
+                                          <SelectTrigger className="w-[180px] col-span-3">
+                                            <SelectValue placeholder="Category" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {categories.map(category => (
+                                              <SelectItem key={category} value={category}>{category}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="expirationDate" className="text-right">Expiration Date</Label>
+                                        <Input
+                                          id="expirationDate"
+                                          type="date"
+                                          value={editingItem?.expirationDate ? format(new Date(editingItem.expirationDate), 'yyyy-MM-dd') : ''}
+                                          onChange={(e) => handleEditChange('expirationDate', e.target.value)}
+                                          className="col-span-3"
+                                        />
+                                      </div>
+                                    </div>
                                     <Button onClick={saveEditedItem}>Save Changes</Button>
                                   </DialogContent>
                                 </Dialog>
