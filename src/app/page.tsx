@@ -697,14 +697,7 @@ export default function ShoppingApp() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 py-8 relative">
-      <Image
-        src="/micheile-henderson-A6SRsOU3T3s-unsplash.jpg"
-        alt="Background"
-        layout="fill"
-        objectFit="cover"
-        quality={100}
-        className="opacity-20"
-      />
+
       <div className="container mx-auto px-4 relative z-10">
         <header className="text-center mb-8">
           <p className="text-xl text-gray-600">Your smart kitchen companion</p>
